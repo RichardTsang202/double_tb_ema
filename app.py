@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional
 import json
 import os
+from telegram_bot import TelegramBot
 
 # 配置matplotlib支持中文显示
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Arial Unicode MS', 'DejaVu Sans']
@@ -56,6 +57,14 @@ class KlineMonitor:
         self.signals = {}
         self.logger = setup_logging()
         
+        # 初始化Telegram Bot
+        try:
+            self.telegram_bot = TelegramBot()
+            self.logger.info("Telegram Bot初始化成功")
+        except Exception as e:
+            self.logger.warning(f"Telegram Bot初始化失败: {str(e)}")
+            self.telegram_bot = None
+        
         # 交易所API配置
         self.exchanges = {
             "binance": "https://api.binance.com/api/v3/klines",
@@ -80,6 +89,18 @@ class KlineMonitor:
     def run(self):
         """主运行循环"""
         self.logger.info("启动K线信号监控系统")
+        
+        # 发送系统启动通知
+        if self.telegram_bot:
+            try:
+                symbols_str = ", ".join(self.symbols)
+                self.telegram_bot.send_system_status(
+                    "started", 
+                    f"监控交易对: {symbols_str}"
+                )
+                self.logger.info("系统启动通知已发送")
+            except Exception as e:
+                self.logger.error(f"发送启动通知失败: {str(e)}")
         
         # 步骤1：初始化所有交易对
         for symbol in self.symbols:
@@ -597,7 +618,7 @@ class KlineMonitor:
             
             signal_info = {
                 'symbol': symbol,
-                'signal_type': signal_type,
+                'type': signal_type,
                 'price': current_price,
                 'timestamp': datetime.now().isoformat(),
                 'ema21': self.data_cache[symbol]['ema21'],
@@ -612,6 +633,17 @@ class KlineMonitor:
             
             # 生成图表
             chart_path = self.plot_signal(symbol, signal_type)
+            
+            # 发送Telegram通知
+            if self.telegram_bot:
+                try:
+                    success = self.telegram_bot.send_signal(signal_info, chart_path)
+                    if success:
+                        self.logger.info(f"Telegram通知发送成功: {symbol} {signal_type}")
+                    else:
+                        self.logger.warning(f"Telegram通知发送失败: {symbol} {signal_type}")
+                except Exception as e:
+                    self.logger.error(f"发送Telegram通知时出错: {str(e)}")
             
             self.logger.info(f"📊 {symbol} {signal_type} 信号 - 价格: {current_price:.4f}")
             
@@ -1145,10 +1177,24 @@ if __name__ == "__main__":
             monitor.run()
         except KeyboardInterrupt:
             print("\n程序被用户中断")
+            # 发送系统停止通知
+            if monitor.telegram_bot:
+                try:
+                    monitor.telegram_bot.send_system_status("stopped", "系统被用户手动停止")
+                    print("系统停止通知已发送")
+                except Exception as e:
+                    print(f"发送停止通知失败: {str(e)}")
             monitor.save_signals_to_file()
             print("信号数据已保存，程序退出")
         except Exception as e:
             print(f"程序运行出错: {e}")
+            # 发送系统错误通知
+            if monitor.telegram_bot:
+                try:
+                    monitor.telegram_bot.send_system_status("error", f"系统运行出错: {str(e)}")
+                    print("系统错误通知已发送")
+                except Exception as te:
+                    print(f"发送错误通知失败: {str(te)}")
             monitor.save_signals_to_file()
             print("信号数据已保存")
             
