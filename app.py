@@ -1106,7 +1106,7 @@ class KlineMonitor:
             if signal_type in ['double_top', 'double_bottom']:
                 self._mark_pattern_points(ax1, symbol, signal_type, all_klines, chart_klines)
             
-            ax1.set_title(f'{symbol} - {signal_type} 信号 - {datetime.now().strftime("%Y-%m-%d %H:%M")}', fontsize=14)
+            ax1.set_title(f'{symbol} - {signal_type} Signal - {datetime.now().strftime("%Y-%m-%d %H:%M")}', fontsize=14)
             ax1.legend()
             ax1.grid(True, alpha=0.3)
             
@@ -1118,7 +1118,7 @@ class KlineMonitor:
             if signal_type in ['double_top', 'double_bottom']:
                 self._mark_volume_connection(ax2, symbol, signal_type, all_klines, chart_klines, volumes)
             
-            ax2.set_title('成交量')
+            ax2.set_title('Volume')
             ax2.grid(True, alpha=0.3)
             
             # MACD图 - 确保x轴对齐
@@ -1157,8 +1157,8 @@ class KlineMonitor:
             if signal_type in ['double_top', 'double_bottom']:
                 self._mark_rsi_connection(ax4, symbol, signal_type, all_klines, chart_klines, rsi_values, rsi_start if len(rsi_values) > 0 else 0)
             
-            ax4.axhline(y=70, color='red', linestyle='--', alpha=0.7, label='超买')
-            ax4.axhline(y=30, color='green', linestyle='--', alpha=0.7, label='超卖')
+            ax4.axhline(y=70, color='red', linestyle='--', alpha=0.7, label='Overbought')
+            ax4.axhline(y=30, color='green', linestyle='--', alpha=0.7, label='Oversold')
             ax4.axhline(y=50, color='black', linestyle='-', alpha=0.3)
             ax4.set_ylim(0, 100)
             ax4.set_title('RSI')
@@ -1175,11 +1175,11 @@ class KlineMonitor:
             plt.savefig(filename, dpi=300, bbox_inches='tight')
             plt.close()
             
-            self.logger.info(f"图表已生成: {filename}")
+            self.logger.info(f"Chart generated: {filename}")
             return filename
             
         except Exception as e:
-            self.logger.error(f"{symbol} 生成图表失败: {str(e)}")
+            self.logger.error(f"{symbol} Chart generation failed: {str(e)}")
             return ""
     
     def _mark_pattern_points(self, ax, symbol: str, signal_type: str, all_klines: List, chart_klines: List):
@@ -1229,11 +1229,11 @@ class KlineMonitor:
                     if B_top and B_top_index is not None and B_top_index >= chart_start_index:
                         b_chart_pos = B_top_index - chart_start_index
                         ax.plot([c_chart_pos, b_chart_pos], [C_bottom, B_top], 
-                               color='orange', linewidth=2, linestyle='-', alpha=0.8, label='C-B连线')
+                               color='orange', linewidth=2, linestyle='-', alpha=0.8, label='C-B Line')
                 
                 # 画双顶参考线
                 if A_top:
-                    ax.axhline(y=A_top, color='red', linestyle='--', alpha=0.5, label='双顶线')
+                    ax.axhline(y=A_top, color='red', linestyle='--', alpha=0.5, label='Double Top Line')
             
             elif signal_type == 'double_bottom':
                 # 标记A点（红色）
@@ -1261,14 +1261,14 @@ class KlineMonitor:
                     if B_bottom and B_bottom_index is not None and B_bottom_index >= chart_start_index:
                         b_chart_pos = B_bottom_index - chart_start_index
                         ax.plot([c_chart_pos, b_chart_pos], [C_top, B_bottom], 
-                               color='orange', linewidth=2, linestyle='-', alpha=0.8, label='C-B连线')
+                               color='orange', linewidth=2, linestyle='-', alpha=0.8, label='C-B Line')
                 
                 # 画双底参考线
                 if A_bottom:
-                    ax.axhline(y=A_bottom, color='green', linestyle='--', alpha=0.5, label='双底线')
+                    ax.axhline(y=A_bottom, color='green', linestyle='--', alpha=0.5, label='Double Bottom Line')
                 
         except Exception as e:
-            self.logger.error(f"标记关键点失败: {str(e)}")
+            self.logger.error(f"Mark key points failed: {str(e)}")
     
     def _mark_volume_connection(self, ax, symbol: str, signal_type: str, all_klines: List, chart_klines: List, volumes: List):
         """连接BC点对应的成交量柱状图顶点"""
@@ -1291,7 +1291,7 @@ class KlineMonitor:
                     c_chart_pos = C_bottom_index - chart_start_index
                     if 0 <= b_chart_pos < len(volumes) and 0 <= c_chart_pos < len(volumes):
                         ax.plot([c_chart_pos, b_chart_pos], [volumes[c_chart_pos], volumes[b_chart_pos]], 
-                               color='orange', linewidth=2, linestyle='-', alpha=0.8, label='C-B成交量连线')
+                               color='orange', linewidth=2, linestyle='-', alpha=0.8, label='C-B Volume Line')
             
             elif signal_type == 'double_bottom':
                 # 双底：连接C_top和B_bottom对应的成交量
@@ -1301,10 +1301,10 @@ class KlineMonitor:
                     c_chart_pos = C_top_index - chart_start_index
                     if 0 <= b_chart_pos < len(volumes) and 0 <= c_chart_pos < len(volumes):
                         ax.plot([c_chart_pos, b_chart_pos], [volumes[c_chart_pos], volumes[b_chart_pos]], 
-                               color='orange', linewidth=2, linestyle='-', alpha=0.8, label='C-B成交量连线')
+                               color='orange', linewidth=2, linestyle='-', alpha=0.8, label='C-B Volume Line')
                         
         except Exception as e:
-            self.logger.error(f"连接成交量点失败: {str(e)}")
+            self.logger.error(f"Connect volume points failed: {str(e)}")
     
     def _mark_macd_connection(self, ax, symbol: str, signal_type: str, all_klines: List, chart_klines: List, histogram: List, hist_start: int):
         """连接BC点对应的MACD柱状图顶点"""
@@ -1335,7 +1335,7 @@ class KlineMonitor:
                     
                     if 0 <= b_macd_pos < len(histogram) and 0 <= c_macd_pos < len(histogram):
                         ax.plot([c_chart_pos, b_chart_pos], [histogram[c_macd_pos], histogram[b_macd_pos]], 
-                               color='orange', linewidth=2, linestyle='-', alpha=0.8, label='C-B MACD连线')
+                               color='orange', linewidth=2, linestyle='-', alpha=0.8, label='C-B MACD Line')
             
             elif signal_type == 'double_bottom':
                 # 双底：连接C_top和B_bottom对应的MACD柱状图
@@ -1350,10 +1350,10 @@ class KlineMonitor:
                     
                     if 0 <= b_macd_pos < len(histogram) and 0 <= c_macd_pos < len(histogram):
                         ax.plot([c_chart_pos, b_chart_pos], [histogram[c_macd_pos], histogram[b_macd_pos]], 
-                               color='orange', linewidth=2, linestyle='-', alpha=0.8, label='C-B MACD连线')
+                               color='orange', linewidth=2, linestyle='-', alpha=0.8, label='C-B MACD Line')
                         
         except Exception as e:
-            self.logger.error(f"连接MACD点失败: {str(e)}")
+            self.logger.error(f"Connect MACD points failed: {str(e)}")
     
     def _mark_rsi_connection(self, ax, symbol: str, signal_type: str, all_klines: List, chart_klines: List, rsi_values: List, rsi_start: int):
         """连接BC点对应的RSI点"""
@@ -1384,7 +1384,7 @@ class KlineMonitor:
                     
                     if 0 <= b_rsi_pos < len(rsi_values) and 0 <= c_rsi_pos < len(rsi_values):
                         ax.plot([c_chart_pos, b_chart_pos], [rsi_values[c_rsi_pos], rsi_values[b_rsi_pos]], 
-                               color='orange', linewidth=2, linestyle='-', alpha=0.8, label='C-B RSI连线')
+                               color='orange', linewidth=2, linestyle='-', alpha=0.8, label='C-B RSI Line')
             
             elif signal_type == 'double_bottom':
                 # 双底：连接C_top和B_bottom对应的RSI
@@ -1399,10 +1399,10 @@ class KlineMonitor:
                     
                     if 0 <= b_rsi_pos < len(rsi_values) and 0 <= c_rsi_pos < len(rsi_values):
                         ax.plot([c_chart_pos, b_chart_pos], [rsi_values[c_rsi_pos], rsi_values[b_rsi_pos]], 
-                               color='orange', linewidth=2, linestyle='-', alpha=0.8, label='C-B RSI连线')
+                               color='orange', linewidth=2, linestyle='-', alpha=0.8, label='C-B RSI Line')
                         
         except Exception as e:
-            self.logger.error(f"连接RSI点失败: {str(e)}")
+            self.logger.error(f"Connect RSI points failed: {str(e)}")
     
     def get_signal_summary(self, symbol: str = None) -> Dict:
         """获取信号汇总"""
