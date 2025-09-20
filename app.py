@@ -16,7 +16,6 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional
 import json
 import os
-from telegram_bot import TelegramBot
 
 # 配置管理类 - 集成自config.py
 class Config:
@@ -135,6 +134,201 @@ class Config:
                 os.makedirs(directory)
                 print(f"创建目录: {directory}")
 
+# TelegramBot类 - 集成自telegram_bot.py
+class TelegramBot:
+    """Telegram Bot功能类"""
+    
+    def __init__(self):
+        """初始化Telegram Bot"""
+        self.bot_token = Config.TELEGRAM_BOT_TOKEN
+        self.channel_id = Config.TELEGRAM_CHANNEL_ID
+        self.base_url = f"https://api.telegram.org/bot{self.bot_token}"
+        self.logger = logging.getLogger("TelegramBot")
+    
+    def test_connection(self) -> bool:
+        """测试Bot连接"""
+        try:
+            url = f"{self.base_url}/getMe"
+            response = requests.get(url, timeout=10)
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("ok"):
+                    self.logger.info("Telegram Bot连接测试成功")
+                    return True
+            
+            self.logger.error(f"Bot连接测试失败: {response.status_code}")
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"Bot连接测试异常: {str(e)}")
+            return False
+    
+    def send_message(self, text: str, parse_mode: str = None) -> bool:
+        """发送文本消息"""
+        try:
+            url = f"{self.base_url}/sendMessage"
+            
+            payload = {
+                'chat_id': self.channel_id,
+                'text': text
+            }
+            
+            # 只在明确指定时添加parse_mode
+            if parse_mode:
+                payload['parse_mode'] = parse_mode
+            
+            response = requests.post(url, json=payload, timeout=30)
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("ok"):
+                    self.logger.info("消息发送成功")
+                    return True
+                else:
+                    self.logger.error(f"消息发送失败: {result.get('description')}")
+                    return False
+            else:
+                self.logger.error(f"HTTP错误: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"发送消息异常: {str(e)}")
+            return False
+    
+    def send_photo(self, photo_path: str, caption: str = "", parse_mode: str = None) -> bool:
+        """发送图片"""
+        try:
+            if not os.path.exists(photo_path):
+                self.logger.error(f"图片文件不存在: {photo_path}")
+                return False
+            
+            # 获取文件大小
+            file_size = os.path.getsize(photo_path)
+            self.logger.info(f"发送图片: {photo_path}, 大小: {file_size} bytes")
+            
+            url = f"{self.base_url}/sendPhoto"
+            
+            with open(photo_path, 'rb') as photo_file:
+                files = {'photo': photo_file}
+                
+                data = {
+                    'chat_id': self.channel_id,
+                    'caption': caption
+                }
+                
+                # 只在明确指定时添加parse_mode
+                if parse_mode:
+                    data['parse_mode'] = parse_mode
+                
+                response = requests.post(url, files=files, data=data, timeout=60)
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("ok"):
+                    self.logger.info("图片发送成功")
+                    return True
+                else:
+                    self.logger.error(f"图片发送失败: {result.get('description')}")
+                    return False
+            else:
+                self.logger.error(f"HTTP错误: {response.status_code}, 详情: {response.text}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"发送图片异常: {str(e)}")
+            return False
+    
+    def send_signal_alert(self, signal_info: Dict, chart_path: str = None) -> bool:
+        """发送信号提醒"""
+        try:
+            # 格式化消息
+            message = self._format_signal_message(signal_info)
+            
+            # 先发送文本消息
+            if not self.send_message(message):
+                return False
+            
+            # 如果有图表，发送图片
+            if chart_path and os.path.exists(chart_path):
+                caption = f"{signal_info['symbol']} {signal_info['type']} 信号图表"
+                return self.send_photo(chart_path, caption)
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"发送信号提醒异常: {str(e)}")
+            return False
+    
+    def send_system_status(self, status: str, message: str = "") -> bool:
+        """发送系统状态"""
+        try:
+            status_icons = {
+                "started": "🟢",
+                "stopped": "🔴", 
+                "error": "❌",
+                "warning": "⚠️"
+            }
+            
+            icon = status_icons.get(status, "ℹ️")
+            text = f"{icon} 系统状态: {status.upper()}"
+            
+            if message:
+                text += f"\n{message}"
+            
+            text += f"\n时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            
+            return self.send_message(text)
+            
+        except Exception as e:
+            self.logger.error(f"发送系统状态异常: {str(e)}")
+            return False
+    
+    def _format_signal_message(self, signal_info: Dict) -> str:
+        """格式化信号消息"""
+        try:
+            symbol = signal_info['symbol']
+            signal_type = signal_info['type']
+            price = signal_info['price']
+            timestamp = signal_info['timestamp']
+            
+            # 信号类型映射
+            type_mapping = {
+                'double_top': '双顶信号',
+                'double_bottom': '双底信号',
+                'uptrend': 'EMA上升趋势',
+                'downtrend': 'EMA下降趋势'
+            }
+            
+            signal_name = type_mapping.get(signal_type, signal_type)
+            
+            # 使用纯文本格式，避免特殊字符和Markdown解析错误
+            message = f"[信号] {signal_name}\n"
+            message += f"交易对: {symbol}\n"
+            message += f"价格: {price:.4f}\n"
+            
+            if 'ema21' in signal_info and signal_info['ema21']:
+                message += f"EMA21: {signal_info['ema21']:.4f}\n"
+            
+            if 'ema55' in signal_info and signal_info['ema55']:
+                message += f"EMA55: {signal_info['ema55']:.4f}\n"
+            
+            if 'atr' in signal_info and signal_info['atr']:
+                message += f"ATR: {signal_info['atr']:.4f}\n"
+            
+            # 解析时间戳
+            try:
+                dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                message += f"时间: {dt.strftime('%Y-%m-%d %H:%M:%S')}"
+            except:
+                message += f"时间: {timestamp}"
+            
+            return message
+            
+        except Exception as e:
+            self.logger.error(f"格式化信号消息失败: {str(e)}")
+            return f"信号提醒: {signal_info.get('symbol', 'Unknown')} - {signal_info.get('type', 'Unknown')}"
+
 # 配置matplotlib支持中文显示
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Arial Unicode MS', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
@@ -142,8 +336,6 @@ plt.rcParams['axes.unicode_minus'] = False
 # 配置日志系统
 def setup_logging():
     """设置日志配置"""
-    from config import Config
-    
     # 确保日志目录存在
     if not os.path.exists(Config.LOG_DIR):
         os.makedirs(Config.LOG_DIR)
